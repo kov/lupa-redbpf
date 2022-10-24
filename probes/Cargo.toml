@@ -1,0 +1,24 @@
+[package]
+name = "probes"
+version = "0.1.0"
+edition = '2018'
+
+[dependencies]
+cty = "0.2"
+redbpf-macros = { git = "https://github.com/foniod/redbpf.git" }
+redbpf-probes = { git = "https://github.com/foniod/redbpf.git" }
+
+[build-dependencies]
+cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false }
+
+[features]
+default = []
+probes = []
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "filetracker"
+path = "src/filetracker/main.rs"
+required-features = ["probes"]

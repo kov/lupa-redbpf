@@ -1,0 +1,20 @@
+[package]
+name = "lupa"
+version = "0.1.0"
+authors = ["Gustavo Noronha Silva <gustavo@noronha.dev.br>"]
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+probes = { path = "./probes" }
+
+redbpf = { git = "https://github.com/foniod/redbpf.git", features = ["load"] }
+
+tracing-subscriber = "0.3"
+tracing = "0.1"
+
+tokio = { version = "1.0", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
+futures = "0.3"
+
+[build-dependencies]
+cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false, features = ["llvm13", "build"] }
