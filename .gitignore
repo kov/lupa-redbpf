@@ -1,4 +1,6 @@
 /target
 /probes/target
+/web/target
+/web/dist
 Cargo.lock
 .vscode

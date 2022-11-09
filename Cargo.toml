@@ -5,6 +5,18 @@ authors = ["Gustavo Noronha Silva <gustavo@noronha.dev.br>"]
 edition = "2021"
 build = "build.rs"
 
+[[bin]]
+name = "lupa-probe"
+path = "src/probe.rs"
+
+[[bin]]
+name = "lupa-wrapper"
+path = "src/wrapper.rs"
+
+[features]
+default = ["web-frontend"]
+web-frontend = []
+
 [dependencies]
 probes = { path = "./probes" }
 
@@ -15,6 +27,18 @@ tracing = "0.1"
 
 tokio = { version = "1.0", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
 futures = "0.3"
+
+rocket = "0.4"
+rocket_contrib = "0.4.11"
+
+rust-embed = { version = "6.4", features = ["interpolate-folder-path", "debug-embed"] }
+
+serde = { version = "1.0", features = ["derive"] }
+serde-big-array = "0.4.1"
+serde_json = "1.0.87"
+
+signal-hook = "0.3.14"
+nix = { version = "0.25", features = ["signal"] }
 
 [build-dependencies]
 cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false, features = ["llvm13", "build"] }
