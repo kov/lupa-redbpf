@@ -1,7 +1,11 @@
 #![feature(decl_macro)]
-#![feature(stmt_expr_attributes)]
+use crate::lupa::Lupa;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
+
+mod file_probes;
+mod lupa;
+mod process;
 
 #[cfg(feature = "web-frontend")]
 mod web_frontend;
@@ -20,5 +24,5 @@ fn main() {
         rocket::routes![web_frontend::index, web_frontend::embedded],
     );
 
-    server.launch();
+    server.manage(Lupa::new()).launch();
 }

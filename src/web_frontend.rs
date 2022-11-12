@@ -1,4 +1,7 @@
+use crate::lupa::Lupa;
+use crate::process::ProcessState;
 use rocket::get;
+use rocket::State;
 use rust_embed::RustEmbed;
 use std::borrow::Cow;
 use std::path::Path;
@@ -9,7 +12,14 @@ use std::path::PathBuf;
 struct Asset;
 
 #[get("/")]
-pub fn index() -> &'static [u8] {
+pub fn index(lupa: State<Lupa>) -> &'static [u8] {
+    match lupa.process.get_state() {
+        ProcessState::NotStarted => lupa.process.spawn(),
+        ProcessState::Running => println!("Process is running..."),
+        ProcessState::Ended => println!("Process ended"),
+    };
+    println!("Files open: {}", lupa.process.files.read().unwrap().len());
+
     get_embedded_path("index.html").expect("index.html missing from the bundle")
 }
 

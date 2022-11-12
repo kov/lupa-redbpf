@@ -1,27 +1,127 @@
-use std::{collections::HashMap, ffi::OsStr, os::unix::prelude::OsStrExt, path::PathBuf};
-
+use crate::file_probes;
 use probes::filetracker::{EventKind, FileEvent};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    os::unix::prelude::OsStrExt,
+    path::PathBuf,
+    process::{Child, ExitStatus},
+    sync::{mpsc::sync_channel, Arc, RwLock},
+    thread::JoinHandle,
+};
 use tracing::trace;
 
-pub(crate) struct Process {
-    pub(crate) pid: u64,
-    pub(crate) files: HashMap<u64, File>,
+type FilesTracker = Arc<RwLock<HashMap<u64, File>>>;
+
+struct RunningProcess {
+    command: Vec<String>,
+    child: Child,
+    probe: JoinHandle<()>,
 }
 
-pub(crate) struct File {
-    pub(crate) fd: u64,
-    pub(crate) path: PathBuf,
+type StateDetail = Arc<RwLock<ProcessStateDetail>>;
+enum ProcessStateDetail {
+    NotStarted(Vec<String>),
+    Running(RunningProcess),
+    Ended(ExitStatus),
+}
+
+pub enum ProcessState {
+    NotStarted,
+    Running,
+    Ended,
+}
+
+impl From<&ProcessStateDetail> for ProcessState {
+    fn from(detail: &ProcessStateDetail) -> ProcessState {
+        match detail {
+            ProcessStateDetail::NotStarted(_) => ProcessState::NotStarted,
+            ProcessStateDetail::Running(_) => ProcessState::Running,
+            ProcessStateDetail::Ended(_) => ProcessState::Ended,
+        }
+    }
+}
+
+pub struct Process {
+    pub files: FilesTracker,
+    state: StateDetail,
+}
+
+pub struct File {
+    pub fd: u64,
+    pub path: PathBuf,
 }
 
 impl Process {
-    pub(crate) fn new(pid: u64) -> Self {
+    pub fn new(command: Vec<String>) -> Self {
         Self {
-            pid,
-            files: HashMap::new(),
+            state: Arc::new(RwLock::new(ProcessStateDetail::NotStarted(command))),
+            files: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    pub(crate) fn handle_event(&mut self, event: &FileEvent) {
+    pub fn get_state(&self) -> ProcessState {
+        ProcessState::from(&*self.state.read().expect("State lock was poisoned"))
+    }
+
+    pub fn spawn(&self) {
+        let mut state = self.state.write().expect("State lock was poisoned");
+
+        assert!(matches!(*state, ProcessStateDetail::NotStarted(_)));
+
+        let (tx, rx) = sync_channel(4096);
+
+        if let ProcessStateDetail::NotStarted(command) = &*state {
+            let child = std::process::Command::new(command[0].clone())
+                .args(&command[1..])
+                .spawn()
+                .expect("Failed to launch process");
+
+            let files = self.files.clone();
+            let child_pid = child.id() as u64;
+            std::thread::spawn(move || {
+                while let Ok(event) = rx.recv() {
+                    Process::handle_event(child_pid, &files, &event);
+                }
+            });
+
+            let probe = std::thread::spawn(|| {
+                file_probes::run(tx);
+            });
+            *state = ProcessStateDetail::Running(RunningProcess {
+                command: command.clone(),
+                child,
+                probe,
+            });
+
+            let tstate = self.state.clone();
+            std::thread::spawn(move || {
+                let mut new_state = None;
+
+                while let None = new_state {
+                    if let ProcessStateDetail::Running(state) =
+                        &mut *tstate.write().expect("State lock was poisoned")
+                    {
+                        if let Some(status) = state
+                            .child
+                            .try_wait()
+                            .expect("Failed to wait for child process")
+                        {
+                            new_state = Some(ProcessStateDetail::Ended(status));
+                        }
+                    }
+
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+
+                if let Some(new_state) = new_state {
+                    *tstate.write().expect("State lock was poisoned") = new_state;
+                }
+            });
+        }
+    }
+
+    pub fn handle_event(child_pid: u64, files: &FilesTracker, event: &FileEvent) {
         // Ignore ourselves.
         if event.pid == std::process::id().into() {
             return;
@@ -46,9 +146,10 @@ impl Process {
             path_str,
         );
 
+        let mut files = files.write().expect("Files tracker lock was poisoned.");
         match event.kind {
             EventKind::Open => {
-                let existing = self.files.insert(
+                let existing = files.insert(
                     event.fd as u64,
                     File {
                         fd: event.fd as u64,
@@ -63,18 +164,18 @@ impl Process {
                     trace!(
                         "Duplicate file descriptor {} for PID {} path {} <=> {}",
                         existing.fd,
-                        self.pid,
+                        child_pid,
                         path_str,
                         existing.path.to_string_lossy()
                     );
                 }
             }
             EventKind::Close => {
-                let found = self.files.remove(&(event.fd as u64));
+                let found = files.remove(&(event.fd as u64));
                 if found.is_none() {
                     trace!(
                         "PID {} tried to close file descriptor {}, which we did not know",
-                        self.pid,
+                        child_pid,
                         event.fd
                     );
                 }
