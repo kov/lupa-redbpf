@@ -1,6 +1,6 @@
 // FIXME: this should be 4096, like in the kernel, but using the correct value causes the
 // memset to be called to initialize the array, which is a no-no, how do we forbid memset?
-const PATH_MAX: usize = 256;
+pub const PATH_MAX: usize = 256;
 
 #[repr(u64)]
 pub enum EventKind {

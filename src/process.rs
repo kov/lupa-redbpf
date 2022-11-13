@@ -47,6 +47,7 @@ pub struct Process {
     state: StateDetail,
 }
 
+#[derive(Debug)]
 pub struct File {
     pub fd: u64,
     pub path: PathBuf,
@@ -123,7 +124,11 @@ impl Process {
 
     pub fn handle_event(child_pid: u64, files: &FilesTracker, event: &FileEvent) {
         // Ignore ourselves.
-        if event.pid == std::process::id().into() {
+        if event.pid == std::process::id() as u64 {
+            return;
+        }
+
+        if child_pid != event.pid {
             return;
         }
 

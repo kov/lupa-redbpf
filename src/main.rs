@@ -5,6 +5,7 @@ use tracing_subscriber::FmtSubscriber;
 
 mod file_probes;
 mod lupa;
+pub mod probe_serde;
 mod process;
 
 #[cfg(feature = "web-frontend")]

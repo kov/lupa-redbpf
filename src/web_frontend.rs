@@ -12,15 +12,15 @@ use std::path::PathBuf;
 struct Asset;
 
 #[get("/")]
-pub fn index(lupa: State<Lupa>) -> &'static [u8] {
+pub fn index(lupa: State<Lupa>) -> String {
     match lupa.process.get_state() {
         ProcessState::NotStarted => lupa.process.spawn(),
         ProcessState::Running => println!("Process is running..."),
         ProcessState::Ended => println!("Process ended"),
     };
-    println!("Files open: {}", lupa.process.files.read().unwrap().len());
+    format!("Files open: {:#?}", lupa.process.files.read().unwrap())
 
-    get_embedded_path("index.html").expect("index.html missing from the bundle")
+    //get_embedded_path("index.html").expect("index.html missing from the bundle")
 }
 
 #[get("/<path..>")]

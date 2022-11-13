@@ -7,7 +7,7 @@ pub struct Lupa {
 impl Lupa {
     pub fn new() -> Self {
         Lupa {
-            process: Process::new(vec!["top".to_string()]),
+            process: Process::new(vec!["python".to_string()]),
         }
     }
 }
