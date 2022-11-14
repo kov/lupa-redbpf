@@ -5,10 +5,11 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc::SyncSender;
 
 pub fn run(tx: SyncSender<FileEvent>) {
-    let mut path = std::env::current_exe().expect("Could not identify my own path");
-    path.set_file_name("lupa-probe");
+    // let mut path = std::env::current_exe().expect("Could not identify my own path");
+    // path.set_file_name("lupa-probe");
 
-    println!("path: {}", path.to_string_lossy());
+    // println!("path: {}", path.to_string_lossy());
+    let path = "lupa-probe";
     let mut child = Command::new(path)
         .stdout(Stdio::piped())
         .spawn()

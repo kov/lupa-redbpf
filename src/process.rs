@@ -1,9 +1,10 @@
 use crate::file_probes;
 use probes::filetracker::{EventKind, FileEvent};
+use serde::Serialize;
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    os::unix::prelude::OsStrExt,
+    os::unix::{prelude::OsStrExt, process::CommandExt},
     path::PathBuf,
     process::{Child, ExitStatus},
     sync::{mpsc::sync_channel, Arc, RwLock},
@@ -47,7 +48,7 @@ pub struct Process {
     state: StateDetail,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct File {
     pub fd: u64,
     pub path: PathBuf,
@@ -72,9 +73,12 @@ impl Process {
 
         let (tx, rx) = sync_channel(4096);
 
-        if let ProcessStateDetail::NotStarted(command) = &*state {
-            let child = std::process::Command::new(command[0].clone())
-                .args(&command[1..])
+        if let ProcessStateDetail::NotStarted(args) = &*state {
+            let mut path = std::env::current_exe().expect("Could not identify my own path");
+            path.set_file_name("lupa-wrapper");
+
+            let child = std::process::Command::new(path)
+                .args(args.as_slice())
                 .spawn()
                 .expect("Failed to launch process");
 
@@ -90,7 +94,7 @@ impl Process {
                 file_probes::run(tx);
             });
             *state = ProcessStateDetail::Running(RunningProcess {
-                command: command.clone(),
+                command: args.clone(),
                 child,
                 probe,
             });

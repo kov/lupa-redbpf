@@ -3,6 +3,7 @@ use crate::lupa::Lupa;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
+mod api;
 mod file_probes;
 mod lupa;
 pub mod probe_serde;
@@ -25,5 +26,8 @@ fn main() {
         rocket::routes![web_frontend::index, web_frontend::embedded],
     );
 
-    server.manage(Lupa::new()).launch();
+    server
+        .mount("/api", rocket::routes![api::get_files])
+        .manage(Lupa::new())
+        .launch();
 }

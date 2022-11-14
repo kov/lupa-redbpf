@@ -7,7 +7,12 @@ pub struct Lupa {
 impl Lupa {
     pub fn new() -> Self {
         Lupa {
-            process: Process::new(vec!["python".to_string()]),
+            process: Process::new(
+                vec!["tail", "-f", "/etc/passwd"]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            ),
         }
     }
 }
