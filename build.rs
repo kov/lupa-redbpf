@@ -24,12 +24,14 @@ fn main() {
     env::set_current_dir("web").expect("Failed to enter 'web' directory");
     let web_target_dir = opts.target_dir.join("web");
 
-    Command::new("trunk")
+    let status = Command::new("trunk")
         .arg("build")
         .arg("-d")
         .arg(web_target_dir)
         .status()
         .expect("Failed to build web frontend with trunk");
+
+    assert!(status.success());
 
     for file in &["Cargo.toml", "index.html", "src/main.rs"] {
         println!("cargo:rerun-if-changed=web/{}", file);
