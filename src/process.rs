@@ -3,8 +3,6 @@ use probes::filetracker::{EventKind, FileEvent};
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    ffi::OsStr,
-    os::unix::prelude::OsStrExt,
     path::PathBuf,
     process::{Child, ExitStatus},
     sync::{mpsc::sync_channel, Arc, RwLock},
@@ -149,7 +147,9 @@ impl Process {
             return;
         }
 
-        let path_str = std::str::from_utf8(&event.path).expect("Failed UTF-8 conversion");
+        let path_str = std::str::from_utf8(&event.path)
+            .expect("Failed UTF-8 conversion")
+            .trim_end_matches(char::from(0));
         trace!(
             "File event from PID {} fd {} path {}",
             event.pid,
@@ -164,7 +164,7 @@ impl Process {
                     event.fd as u64,
                     File {
                         fd: event.fd as u64,
-                        path: PathBuf::from(OsStr::from_bytes(&event.path)),
+                        path: PathBuf::from(&path_str),
                     },
                 );
 
