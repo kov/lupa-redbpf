@@ -1,14 +1,30 @@
 use crate::probe_serde::*;
 use futures::StreamExt;
 use probes::filetracker::FileEvent;
-use redbpf::load::Loader;
+use redbpf::{load::Loader, Array};
 use tracing::warn;
 
 mod probe_serde;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    let pid: u64 = std::env::args()
+        .nth(1)
+        .expect("Expected PID as first argument")
+        .parse()
+        .expect("First argument needs to be a valid PID number");
+
     let mut filetracker = Loader::load(filetracker_probe_code()).expect("error on Loader::load");
+
+    Array::<u64>::new(
+        filetracker
+            .map_mut("pid_to_track")
+            .expect("Failed to obtain PID to track map from probe"),
+    )
+    .unwrap()
+    .set(0, pid)
+    .expect("Failed to set PID on the probe's map");
+
     for kprobe in filetracker.kprobes_mut() {
         kprobe
             .attach_kprobe(&kprobe.name(), 0)

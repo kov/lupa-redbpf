@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    os::unix::{prelude::OsStrExt, process::CommandExt},
+    os::unix::prelude::OsStrExt,
     path::PathBuf,
     process::{Child, ExitStatus},
     sync::{mpsc::sync_channel, Arc, RwLock},
@@ -90,9 +90,11 @@ impl Process {
                 }
             });
 
-            let probe = std::thread::spawn(|| {
-                file_probes::run(tx);
+            let child_pid = child.id() as u64;
+            let probe = std::thread::spawn(move || {
+                file_probes::run(child_pid, tx);
             });
+
             *state = ProcessStateDetail::Running(RunningProcess {
                 command: args.clone(),
                 child,
