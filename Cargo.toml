@@ -38,6 +38,7 @@ serde-big-array = "0.4.1"
 serde_json = "1.0.87"
 
 signal-hook = "0.3.14"
+nix = { version = "0.25", features = ["signal"] }
 
 [build-dependencies]
 cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false, features = ["llvm13", "build"] }

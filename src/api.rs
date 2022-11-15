@@ -10,10 +10,7 @@ pub fn get_files(lupa: State<Lupa>) -> Json<Vec<File>> {
             .read()
             .expect("Files lock was poisoned")
             .values()
-            .map(|f| {
-                println!("-{}-", f.path.to_str().unwrap());
-                (*f).clone()
-            })
+            .map(|f| (*f).clone())
             .collect(),
     )
 }

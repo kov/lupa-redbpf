@@ -1,4 +1,6 @@
 use crate::probe_serde::*;
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 use probes::filetracker::FileEvent;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -15,6 +17,16 @@ pub fn run(child_pid: u64, tx: SyncSender<FileEvent>) {
         .stdout(Stdio::piped())
         .spawn()
         .expect("Failed to run lupa-probe");
+
+    // lupa-wrapper will sleep until it gets a SIGUSR1; this is to ensure the child
+    // does not start running before the probe is set up, so we don't miss any events.
+    // FIXME: wait for a single line from lupa-wrapper instead of having a race?
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    kill(
+        Pid::from_raw(child_pid as nix::libc::pid_t),
+        Signal::SIGUSR1,
+    )
+    .expect("Could not send SIGUSR1 signal to lupa-probe");
 
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
     loop {
