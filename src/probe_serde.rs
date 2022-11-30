@@ -1,4 +1,4 @@
-use probes::filetracker::{EventKind, FileEvent, PATH_MAX};
+use probes::filetracker::{EventKind, FileEvent, ProcessEvent, PATH_MAX};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
@@ -44,3 +44,32 @@ impl From<FileEvent> for FileEventSerDe {
 
 #[derive(Serialize, Deserialize)]
 pub struct FileProbeIPC(#[serde(with = "FileEventSerDe")] pub FileEvent);
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "ProcessEvent")]
+pub struct ProcessEventSerDe {
+    pub pid: u64,
+    #[serde(with = "EventKindSerDe")]
+    pub kind: EventKind,
+}
+
+impl From<ProcessEventSerDe> for ProcessEvent {
+    fn from(event: ProcessEventSerDe) -> ProcessEvent {
+        ProcessEvent {
+            pid: event.pid,
+            kind: event.kind,
+        }
+    }
+}
+
+impl From<ProcessEvent> for ProcessEventSerDe {
+    fn from(event: ProcessEvent) -> ProcessEventSerDe {
+        ProcessEventSerDe {
+            pid: event.pid,
+            kind: event.kind,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ProcessProbeIPC(#[serde(with = "ProcessEventSerDe")] pub ProcessEvent);

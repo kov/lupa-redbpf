@@ -5,6 +5,7 @@ use yew::prelude::*;
 
 #[derive(Deserialize)]
 struct File {
+    pid: u64,
     fd: u64,
     path: String,
 }
@@ -39,7 +40,7 @@ fn app() -> Html {
         .map(|file| {
             html! {
                 <tr>
-                    <td>{&file.path}</td><td>{file.fd}</td>
+                    <td>{file.pid}</td><td>{&file.path}</td><td>{file.fd}</td>
                 </tr>
             }
         })
@@ -47,10 +48,10 @@ fn app() -> Html {
 
     html! {
         <>
-            <h1>{ "Open files" }</h1>
+            <h1>{"Open files"}</h1>
             <table id="files-table">
                 <tr>
-                    <th>{ "Path" }</th><th>{ "FD" }</th>
+                    <th>{"PID"}</th><th>{"Path"}</th><th>{"FD"}</th>
                 </tr>
                 { files_html }
             </table>

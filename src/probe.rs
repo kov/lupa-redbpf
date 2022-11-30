@@ -1,6 +1,6 @@
 use crate::probe_serde::*;
 use futures::StreamExt;
-use probes::filetracker::FileEvent;
+use probes::filetracker::{FileEvent, ProcessEvent};
 use redbpf::{load::Loader, Array};
 use tracing::warn;
 
@@ -18,7 +18,7 @@ async fn main() {
 
     Array::<u64>::new(
         filetracker
-            .map_mut("pid_to_track")
+            .map_mut("pid_to_trace")
             .expect("Failed to obtain PID to track map from probe"),
     )
     .unwrap()
@@ -32,8 +32,17 @@ async fn main() {
     }
 
     for tracepoint in filetracker.tracepoints_mut() {
+        let name = tracepoint.name();
+        let category = if name.starts_with("sched_") {
+            "sched"
+        } else if name.starts_with("sys_") {
+            "syscalls"
+        } else {
+            unreachable!()
+        };
+
         tracepoint
-            .attach_trace_point("syscalls", &tracepoint.name())
+            .attach_trace_point(category, &name)
             .unwrap_or_else(|e| {
                 panic!(
                     "error attaching syscalls tracepoint {}: {:#?}",
@@ -48,6 +57,15 @@ async fn main() {
             for event in events {
                 let file_event = unsafe { std::ptr::read(event.as_ptr() as *const FileEvent) };
                 match serde_json::to_string(&FileProbeIPC(file_event)) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => warn!("Failed to serialize event: {}", e),
+                };
+            }
+        } else if map_name == "process_events" {
+            for event in events {
+                let process_event =
+                    unsafe { std::ptr::read(event.as_ptr() as *const ProcessEvent) };
+                match serde_json::to_string(&ProcessProbeIPC(process_event)) {
                     Ok(s) => println!("{}", s),
                     Err(e) => warn!("Failed to serialize event: {}", e),
                 };

@@ -2,6 +2,12 @@
 // memset to be called to initialize the array, which is a no-no, how do we forbid memset?
 pub const PATH_MAX: usize = 256;
 
+#[repr(C)]
+pub struct ProcessEvent {
+    pub pid: u64,
+    pub kind: EventKind,
+}
+
 #[repr(u64)]
 pub enum EventKind {
     Open,
@@ -33,6 +39,14 @@ pub struct TracepointCommonArgs {
     pub flags: u8,
     pub preempt_count: u8,
     pub pid: i32,
+}
+
+#[repr(C, packed(1))]
+pub struct SchedProcessExitArgs {
+    pub common: TracepointCommonArgs,
+    pub comm: [u8; 16],
+    pub pid: i32,
+    pub prio: i32,
 }
 
 // See /sys/kernel/debug/tracing/events/syscalls/sys_enter_close/format.

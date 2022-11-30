@@ -48,6 +48,7 @@ pub struct Process {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct File {
+    pub pid: u64,
     pub fd: u64,
     pub path: PathBuf,
 }
@@ -81,10 +82,9 @@ impl Process {
                 .expect("Failed to launch process");
 
             let files = self.files.clone();
-            let child_pid = child.id() as u64;
             std::thread::spawn(move || {
                 while let Ok(event) = rx.recv() {
-                    Process::handle_event(child_pid, &files, &event);
+                    Process::handle_event(&files, &event);
                 }
             });
 
@@ -126,13 +126,9 @@ impl Process {
         }
     }
 
-    pub fn handle_event(child_pid: u64, files: &FilesTracker, event: &FileEvent) {
+    pub fn handle_event(files: &FilesTracker, event: &FileEvent) {
         // Ignore ourselves.
         if event.pid == std::process::id() as u64 {
-            return;
-        }
-
-        if child_pid != event.pid {
             return;
         }
 
@@ -163,6 +159,7 @@ impl Process {
                 let existing = files.insert(
                     event.fd as u64,
                     File {
+                        pid: event.pid,
                         fd: event.fd as u64,
                         path: PathBuf::from(&path_str),
                     },
@@ -175,7 +172,7 @@ impl Process {
                     trace!(
                         "Duplicate file descriptor {} for PID {} path {} <=> {}",
                         existing.fd,
-                        child_pid,
+                        event.pid,
                         path_str,
                         existing.path.to_string_lossy()
                     );
@@ -186,7 +183,7 @@ impl Process {
                 if found.is_none() {
                     trace!(
                         "PID {} tried to close file descriptor {}, which we did not know",
-                        child_pid,
+                        event.pid,
                         event.fd
                     );
                 }
