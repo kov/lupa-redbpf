@@ -27,7 +27,7 @@ static mut children_to_trace: Array<u64> = Array::with_max_entries(MAX_CHILDREN)
 
 // Keep track of processes started by the PIDs we trace, and trace them as well.
 #[kretprobe]
-fn kernel_clone(regs: Registers, params: [u64; 5]) {
+fn kernel_clone(regs: Registers, _params: [u64; 5]) {
     let pid = bpf_get_current_pid_tgid() >> 32;
     if should_trace(pid) {
         let child_pid = regs.rc() as u64;
@@ -49,7 +49,6 @@ fn kernel_clone(regs: Registers, params: [u64; 5]) {
                 },
             );
         }
-        printk!("Child started for PID %llu: %llu", pid, child_pid);
     }
 }
 
@@ -57,7 +56,6 @@ fn maybe_remove_trace(pid: u64) -> bool {
     unsafe {
         if let Some(to_track) = pid_to_trace.get(0) {
             if *to_track == pid {
-                printk!("PID %llu, that we track, has ended", pid);
                 pid_to_trace.set(0, &0);
                 return true;
             }

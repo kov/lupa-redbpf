@@ -13,10 +13,6 @@ path = "src/probe.rs"
 name = "lupa-wrapper"
 path = "src/wrapper.rs"
 
-[features]
-default = ["web-frontend"]
-web-frontend = []
-
 [dependencies]
 probes = { path = "./probes" }
 
@@ -27,11 +23,6 @@ tracing = "0.1"
 
 tokio = { version = "1.0", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
 futures = "0.3"
-
-rocket = "0.4"
-rocket_contrib = "0.4.11"
-
-rust-embed = { version = "6.4", features = ["interpolate-folder-path", "debug-embed"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde-big-array = "0.4.1"
