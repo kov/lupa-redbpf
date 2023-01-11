@@ -8,6 +8,7 @@ mod probe_serde;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    let hm = HashMap::new();
     let pid: u64 = std::env::args()
         .nth(1)
         .expect("Expected PID as first argument")

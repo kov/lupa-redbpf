@@ -137,9 +137,9 @@ fn do_sys_openat2(regs: Registers, parms: [u64; 5]) {
             bpf_trace_printk(b"error on bpf_probe_read_user_str\0");
             return;
         }
-    }
 
-    unsafe { file_events.insert(regs.ctx, &event) };
+        file_events.insert(regs.ctx, &event)
+    };
 }
 
 #[tracepoint]
