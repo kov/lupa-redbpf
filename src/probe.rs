@@ -61,16 +61,16 @@ async fn main() {
                     Err(e) => warn!("Failed to serialize event: {}", e),
                 };
             }
-        } else if map_name == "process_events" {
-            for event in events {
-                let process_event =
-                    unsafe { std::ptr::read(event.as_ptr() as *const ProcessEvent) };
-                match serde_json::to_string(&ProcessProbeIPC(process_event)) {
-                    Ok(s) => println!("{}", s),
-                    Err(e) => warn!("Failed to serialize event: {}", e),
-                };
-            }
-        }
+        } /* else if map_name == "process_events" {
+              for event in events {
+                  let process_event =
+                      unsafe { std::ptr::read(event.as_ptr() as *const ProcessEvent) };
+                  match serde_json::to_string(&ProcessProbeIPC(process_event)) {
+                      Ok(s) => println!("{}", s),
+                      Err(e) => warn!("Failed to serialize event: {}", e),
+                  };
+              }
+          }*/
     }
 }
 

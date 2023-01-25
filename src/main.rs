@@ -3,10 +3,9 @@ use structopt::StructOpt;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-mod file_probes;
-mod lupa;
+use crate::tracer::Tracer;
+
 pub mod probe_serde;
-mod process;
 mod tracer;
 
 #[derive(Debug, StructOpt)]
@@ -32,7 +31,14 @@ fn main() {
 
     if let Some(cmd) = opt.cmd {
         match cmd {
-            Command::Trace { pid } => println!("pid: {}", pid),
+            Command::Trace { pid } => {
+                println!("pid: {}", pid);
+
+                let tracer = Tracer::new(pid);
+                for event in tracer {
+                    println!("{:#?}", event)
+                }
+            }
         }
     }
 }

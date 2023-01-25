@@ -9,10 +9,6 @@ build = "build.rs"
 name = "lupa-probe"
 path = "src/probe.rs"
 
-[[bin]]
-name = "lupa-wrapper"
-path = "src/wrapper.rs"
-
 [dependencies]
 probes = { path = "./probes" }
 
