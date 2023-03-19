@@ -1,7 +1,8 @@
 use crate::probe_serde::*;
 use probes::filetracker::{EventKind, FileEvent as ProbeFileEvent};
 use serde::Serialize;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::prelude::FileExt;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::{path::PathBuf, sync::mpsc::sync_channel};
@@ -82,31 +83,64 @@ impl Iterator for Tracer {
 }
 
 fn run(child_pid: u64, tx: SyncSender<ProbeFileEvent>) {
-    // let mut path = std::env::current_exe().expect("Could not identify my own path");
-    // path.set_file_name("lupa-probe");
+    let mut path: PathBuf;
 
-    let path = "lupa-probe";
+    if let Ok(_) = std::env::var("LUPA_SYSTEM_PROBE") {
+        path = PathBuf::from("lupa-probe");
+    } else {
+        path = std::env::current_exe().expect("Could not identify my own path");
+        path.set_file_name("lupa-probe");
+    }
+
     let mut child = Command::new(path)
         .arg(child_pid.to_string())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("Failed to run lupa-probe");
 
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut stderr = BufReader::new(child.stderr.take().unwrap());
     loop {
         match child.try_wait() {
-            Ok(Some(_status)) => break,
+            Ok(Some(status)) => {
+                let mut buf = String::new();
+                while let Ok(bytes_read) = stderr.read_line(&mut buf) {
+                    if bytes_read == 0 {
+                        break;
+                    }
+                }
+
+                if !status.success() {
+                    panic!("{}", buf);
+                }
+
+                break;
+            }
             Ok(None) => (),
             Err(e) => panic!("Failed to wait on lupa-probe: {}", e),
         }
 
         let mut buf = String::new();
         if let Ok(_) = stdout.read_line(&mut buf) {
-            println!("line: {}", buf);
+            log_to_file(format!("line: {}", buf));
+            if buf.is_empty() {
+                continue;
+            }
+
             let event = FileEventSerDe::deserialize(&mut serde_json::Deserializer::from_str(&buf))
                 .expect("Failed to deserialize the file event");
             tx.send(ProbeFileEvent::from(event))
                 .expect("Unable to send event through channel");
         }
     }
+}
+
+fn log_to_file<S: AsRef<str>>(m: S) {
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open("/tmp/log")
+        .expect("Failed to create temporary log file");
+    file.write_all(m.as_ref().as_bytes());
 }

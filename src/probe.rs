@@ -1,13 +1,19 @@
 use crate::probe_serde::*;
 use futures::StreamExt;
-use probes::filetracker::{FileEvent, ProcessEvent};
+use probes::filetracker::FileEvent;
 use redbpf::{load::Loader, Array};
+use std::process::ExitCode;
 use tracing::warn;
 
 mod probe_serde;
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> ExitCode {
+    if nix::unistd::Uid::effective().as_raw() != 0 {
+        eprintln!("lupa-probe must be run as root.");
+        return ExitCode::from(1);
+    }
+
     let pid: u64 = std::env::args()
         .nth(1)
         .expect("Expected PID as first argument")
@@ -61,17 +67,10 @@ async fn main() {
                     Err(e) => warn!("Failed to serialize event: {}", e),
                 };
             }
-        } /* else if map_name == "process_events" {
-              for event in events {
-                  let process_event =
-                      unsafe { std::ptr::read(event.as_ptr() as *const ProcessEvent) };
-                  match serde_json::to_string(&ProcessProbeIPC(process_event)) {
-                      Ok(s) => println!("{}", s),
-                      Err(e) => warn!("Failed to serialize event: {}", e),
-                  };
-              }
-          }*/
+        }
     }
+
+    ExitCode::SUCCESS
 }
 
 fn filetracker_probe_code() -> &'static [u8] {
