@@ -1,5 +1,5 @@
 #![feature(decl_macro)]
-use anyhow::Result;
+use anyhow::{bail, Result};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute, style, terminal,
@@ -10,7 +10,7 @@ use std::{
     path::PathBuf,
 };
 use structopt::StructOpt;
-use tracer::FileEvent;
+use tracer::Event as TraceEvent;
 use tracing::{trace, Level};
 use tracing_subscriber::FmtSubscriber;
 use tui::{backend, backend::CrosstermBackend, Terminal};
@@ -65,7 +65,7 @@ struct File {
 
 type OpenFilesMap = HashMap<(u64, u64), File>;
 
-type EventHistory = Vec<FileEvent>;
+type EventHistory = Vec<TraceEvent>;
 
 fn trace_pid(pid: u64) -> Result<()> {
     let mut terminal = setup_terminal()?;
@@ -76,7 +76,7 @@ fn trace_pid(pid: u64) -> Result<()> {
     let tracer = Tracer::new(pid);
     for event in tracer {
         match &event {
-            FileEvent::Open { pid, fd, path } => {
+            TraceEvent::FileOpen { pid, fd, path } => {
                 open_files.insert(
                     (*pid, *fd),
                     File {
@@ -86,13 +86,14 @@ fn trace_pid(pid: u64) -> Result<()> {
                     },
                 );
             }
-            FileEvent::Close { pid, fd } => {
+            TraceEvent::FileClose { pid, fd } => {
                 open_files.remove(&(*pid, *fd));
             }
-            FileEvent::OpenFail { .. } => {
+            TraceEvent::FileOpenFail { .. } => {
                 trace!("Failed to open file");
             }
-        }
+            TraceEvent::ProcessFailed { error } => bail!(error.clone()),
+        };
 
         event_history.push(event);
     }

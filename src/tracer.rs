@@ -1,27 +1,30 @@
-use crate::probe_serde::*;
-use probes::filetracker::{EventKind, FileEvent as ProbeFileEvent};
+use anyhow::{anyhow, Result};
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::prelude::FileExt;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::{path::PathBuf, sync::mpsc::sync_channel};
 use tracing::trace;
 
+use crate::probe_serde::*;
+use probes::filetracker::{EventKind, FileEvent as ProbeFileEvent};
+
 pub struct Tracer {
-    rx: Receiver<ProbeFileEvent>,
+    rx: Receiver<Result<ProbeFileEvent>>,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub enum FileEvent {
-    Open { pid: u64, fd: u64, path: PathBuf },
-    OpenFail { pid: u64, errno: i64, path: PathBuf },
-    Close { pid: u64, fd: u64 },
+pub enum Event {
+    ProcessFailed { error: String },
+
+    FileOpen { pid: u64, fd: u64, path: PathBuf },
+    FileOpenFail { pid: u64, errno: i64, path: PathBuf },
+    FileClose { pid: u64, fd: u64 },
 }
 
 impl Tracer {
     pub fn new(pid: u64) -> Self {
-        let (tx, rx) = sync_channel::<ProbeFileEvent>(4096);
+        let (tx, rx) = sync_channel::<Result<ProbeFileEvent>>(4096);
 
         let child_pid = pid;
         std::thread::spawn(move || {
@@ -33,10 +36,18 @@ impl Tracer {
 }
 
 impl Iterator for Tracer {
-    type Item = FileEvent;
+    type Item = Event;
 
-    fn next(&mut self) -> Option<FileEvent> {
+    fn next(&mut self) -> Option<Event> {
         if let Ok(event) = self.rx.recv() {
+            let event = match event {
+                Ok(event) => event,
+                Err(message) => {
+                    return Some(Event::ProcessFailed {
+                        error: message.to_string(),
+                    });
+                }
+            };
             let path_str = std::str::from_utf8(&event.path)
                 .expect("Failed UTF-8 conversion")
                 .trim_end_matches(char::from(0));
@@ -58,20 +69,20 @@ impl Iterator for Tracer {
                     let path = PathBuf::from(path_str);
 
                     if event.fd < 0 {
-                        FileEvent::OpenFail {
+                        Event::FileOpenFail {
                             pid: event.pid,
                             errno: event.fd,
                             path,
                         }
                     } else {
-                        FileEvent::Open {
+                        Event::FileOpen {
                             pid: event.pid,
                             fd: event.fd as u64,
                             path,
                         }
                     }
                 }
-                EventKind::Close => FileEvent::Close {
+                EventKind::Close => Event::FileClose {
                     pid: event.pid,
                     fd: event.fd as u64,
                 },
@@ -82,7 +93,7 @@ impl Iterator for Tracer {
     }
 }
 
-fn run(child_pid: u64, tx: SyncSender<ProbeFileEvent>) {
+fn run(child_pid: u64, tx: SyncSender<Result<ProbeFileEvent>>) {
     let mut path: PathBuf;
 
     if let Ok(_) = std::env::var("LUPA_SYSTEM_PROBE") {
@@ -112,7 +123,8 @@ fn run(child_pid: u64, tx: SyncSender<ProbeFileEvent>) {
                 }
 
                 if !status.success() {
-                    panic!("{}", buf);
+                    tx.send(Err(anyhow!(buf.trim().to_string())))
+                        .expect("Unable to send event through channel");
                 }
 
                 break;
@@ -130,7 +142,7 @@ fn run(child_pid: u64, tx: SyncSender<ProbeFileEvent>) {
 
             let event = FileEventSerDe::deserialize(&mut serde_json::Deserializer::from_str(&buf))
                 .expect("Failed to deserialize the file event");
-            tx.send(ProbeFileEvent::from(event))
+            tx.send(Ok(ProbeFileEvent::from(event)))
                 .expect("Unable to send event through channel");
         }
     }
@@ -142,5 +154,6 @@ fn log_to_file<S: AsRef<str>>(m: S) {
         .create(true)
         .open("/tmp/log")
         .expect("Failed to create temporary log file");
-    file.write_all(m.as_ref().as_bytes());
+    file.write_all(m.as_ref().as_bytes())
+        .expect("Failed to write to temporary log file");
 }
