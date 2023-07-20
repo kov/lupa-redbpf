@@ -12,7 +12,7 @@ path = "src/probe.rs"
 [dependencies]
 probes = { path = "./probes" }
 
-redbpf = { git = "https://github.com/foniod/redbpf.git", features = ["load"] }
+redbpf = { git = "https://github.com/kov/redbpf.git", branch = "update-bindgen-version", features = ["load", "build"] }
 
 tracing-subscriber = "0.3"
 tracing = "0.1"
@@ -34,4 +34,4 @@ crossterm = "0.26.0"
 backtrace = "0.3.67"
 
 [build-dependencies]
-cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false, features = ["llvm13", "build"] }
+cargo-bpf = { git = "https://github.com/kov/redbpf.git", branch = "update-bindgen-version", default-features = false, features = ["llvm13", "build"] }

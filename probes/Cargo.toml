@@ -5,11 +5,11 @@ edition = '2018'
 
 [dependencies]
 cty = "0.2"
-redbpf-macros = { git = "https://github.com/foniod/redbpf.git" }
-redbpf-probes = { git = "https://github.com/foniod/redbpf.git" }
+redbpf-macros = { git = "https://github.com/kov/redbpf.git", branch = "update-bindgen-version" }
+redbpf-probes = { git = "https://github.com/kov/redbpf.git", branch = "update-bindgen-version" }
 
 [build-dependencies]
-cargo-bpf = { git = "https://github.com/foniod/redbpf.git", default-features = false }
+cargo-bpf = { git = "https://github.com/kov/redbpf.git", branch = "update-bindgen-version", default-features = false, features = ["llvm13"]}
 
 [features]
 default = []
